@@ -14,4 +14,3 @@ fibonacci:
 
 exit:   
         nop
-        ecall
