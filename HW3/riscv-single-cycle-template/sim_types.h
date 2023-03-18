@@ -153,7 +153,6 @@ enum instruction_format_t {
 
 // hold all possible fields in a struct to make storage easier.
 // its up to the execution funtions to know which fields to use.
-// most significant bit before decoding is set to -1.
 typedef struct {
   enum instruction_format_t inst_format;
   uint32_t opcode;
