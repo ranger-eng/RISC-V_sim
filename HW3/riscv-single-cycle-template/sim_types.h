@@ -25,7 +25,7 @@ typedef struct {
   uint32_t rd;
   uint32_t rd_shift;
   uint32_t funct3;
-  uint32_t func3_shift;
+  uint32_t funct3_shift;
   uint32_t rs1;
   uint32_t rs1_shift;
   uint32_t rs2;
@@ -35,10 +35,10 @@ typedef struct {
 } r_type_mask_t;
 
 const r_type_mask_t r_type_mask = {
-  .rd =      0x00001f00,
+  .rd =      0x00000f80,
   .rd_shift = 7,
   .funct3 =  0x00007000,
-  .func3_shift = 12,
+  .funct3_shift = 12,
   .rs1 =     0x000f8000,
   .rs1_shift = 15,
   .rs2 =     0x01f00000,
@@ -55,60 +55,66 @@ typedef struct {
   uint32_t rs1;
   uint32_t rs1_shift;
   uint32_t imm;
+  uint32_t imm_shift;
 } i_type_mask_t;
 
 const i_type_mask_t i_type_mask = {
-  .rd =      0x00001f00,
+  .rd =      0x00000f80,
   .rd_shift = 7,
   .funct3 =  0x00007000,
   .funct3_shift = 12,
   .rs1 =     0x000f8000,
   .rs1_shift = 15,
   .imm =     0xfff00000,
+  .imm_shift = 20,
 };
 
 typedef struct {
-  uint32_t imm40;
+  uint32_t immlow;
+  uint32_t immlow_shift;
   uint32_t funct3;
   uint32_t funct3_shift;
   uint32_t rs1;
   uint32_t rs1_shift;
   uint32_t rs2;
   uint32_t rs2_shift;
-  uint32_t imm115;
+  uint32_t immhigh;
+  uint32_t immhigh_shift;
 } s_type_mask_t;
 
 const s_type_mask_t s_type_mask = {
-  .imm40 =   0x00001f00,
+  .immlow =   0x00000f80,
+  .immlow_shift = 7,
   .funct3 =  0x00007000,
   .funct3_shift = 12,
   .rs1 =     0x000f8000,
   .rs1_shift = 15,
   .rs2 =     0x01f00000,
   .rs2_shift = 20,
-  .imm115 =  0xfe000000,
+  .immhigh = 0xfe000000,
+  .immhigh_shift = 20,
 };
 
 typedef struct {
-  uint32_t imm41_11;
+  uint32_t immlow;
   uint32_t funct3;
   uint32_t funct3_shift;
   uint32_t rs1;
   uint32_t rs1_shift;
   uint32_t rs2;
   uint32_t rs2_shift;
-  uint32_t imm12_105;
+  uint32_t immhigh;
 } sb_type_mask_t;
 
 const sb_type_mask_t sb_type_mask = {
-  .imm41_11 =  0x00001f00,
+  .immlow =  0x00000f80,
   .funct3 =    0x00007000,
   .funct3_shift = 12,
   .rs1 =       0x000f8000,
   .rs1_shift = 15,
   .rs2 =       0x01f00000,
   .rs2_shift = 20,
-  .imm12_105 = 0xfe000000,
+  .immhigh = 0xfe000000,
 };
 
 typedef struct {
@@ -130,7 +136,7 @@ typedef struct {
 } uj_type_mask_t;
 
 const uj_type_mask_t uj_type_mask = {
-  .rd =     0x00001f00,
+  .rd =     0x00000f80,
   .rd_shift = 7,
   .imm =    0xfffff000,
 };
@@ -147,6 +153,7 @@ enum instruction_format_t {
 
 // hold all possible fields in a struct to make storage easier.
 // its up to the execution funtions to know which fields to use.
+// most significant bit before decoding is set to -1.
 typedef struct {
   enum instruction_format_t inst_format;
   uint32_t opcode;
