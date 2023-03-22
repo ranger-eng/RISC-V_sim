@@ -52,9 +52,9 @@ void decode()
 
 void execute()
 {
-  switch (current_riscv_decoded) {
+  switch (current_riscv_decoded.inst_format) {
     case R:
-      execute_r_type(riscv_decoded_t riscv_decoded);
+      execute_r_type(current_riscv_decoded);
       break;
     case I:
       //execute_i_type(riscv_decoded_t riscv_decoded);
@@ -69,14 +69,12 @@ void execute()
       //execute_u_type(riscv_decoded_t riscv_decoded);
       break;
     case UJ:
-      //execute_uj_type(riscv_decoded_t riscv_decoded);
+      execute_uj_type(current_riscv_decoded);
       break;
     default:
       printf("Invalid type\n");
       return;
   }
-
-  NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
 
 void process_instruction()
@@ -123,6 +121,24 @@ enum instruction_format_t decode_opcode (uint32_t instruction) {
 
 // execute function definitions
 void execute_r_type(riscv_decoded_t riscv_decoded) {
+  int32_t rd_value;
+  int32_t rs1_value;
+  int32_t rs2_value;
+
+  // Implement Add
+  if ((riscv_decoded.funct3 == 0) && (riscv_decoded.funct7 == 0)) {
+    rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
+    rs2_value = CURRENT_STATE.REGS[riscv_decoded.rs2];
+
+    rd_value = rs1_value + rs2_value;
+
+    NEXT_STATE.REGS[riscv_decoded.rd] = rd_value;
+  }
+  else {
+    printf("Invalid funct3, funct7\n");
+  }
+
+  NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 
 }
 
@@ -143,6 +159,13 @@ void execute_u_type(riscv_decoded_t riscv_decoded) {
 }
 
 void execute_uj_type(riscv_decoded_t riscv_decoded) {
+  uint32_t rd_value;
+
+  // Implement JAL
+  rd_value = CURRENT_STATE.PC + 4;
+
+  NEXT_STATE.REGS[riscv_decoded.rd] = rd_value; 
+  NEXT_STATE.PC = CURRENT_STATE.PC + riscv_decoded.imm;
 
 }
 
