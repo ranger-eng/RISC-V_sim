@@ -52,6 +52,30 @@ void decode()
 
 void execute()
 {
+  switch (current_riscv_decoded) {
+    case R:
+      execute_r_type(riscv_decoded_t riscv_decoded);
+      break;
+    case I:
+      //execute_i_type(riscv_decoded_t riscv_decoded);
+      break;
+    case S:
+      //execute_s_type(riscv_decoded_t riscv_decoded);
+      break;
+    case SB:
+      //execute_sb_type(riscv_decoded_t riscv_decoded);
+      break;
+    case U:
+      //execute_u_type(riscv_decoded_t riscv_decoded);
+      break;
+    case UJ:
+      //execute_uj_type(riscv_decoded_t riscv_decoded);
+      break;
+    default:
+      printf("Invalid type\n");
+      return;
+  }
+
   NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
 
@@ -97,6 +121,32 @@ enum instruction_format_t decode_opcode (uint32_t instruction) {
   return inst_format;
 }
 
+// execute function definitions
+void execute_r_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+void execute_i_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+void execute_s_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+void execute_sb_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+void execute_u_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+void execute_uj_type(riscv_decoded_t riscv_decoded) {
+
+}
+
+// decode function definitions
 riscv_decoded_t decode_r_type(uint32_t instruction) {
   riscv_decoded_t riscv_decoded = {0};
 
