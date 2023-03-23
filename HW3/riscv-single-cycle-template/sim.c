@@ -135,7 +135,7 @@ void execute_r_type(riscv_decoded_t riscv_decoded) {
     NEXT_STATE.REGS[riscv_decoded.rd] = rd_value;
   }
   else {
-    printf("Invalid funct3, funct7\n");
+    printf("Instruction not recognised\n");
   }
 
   NEXT_STATE.PC = CURRENT_STATE.PC + 4;
@@ -147,15 +147,33 @@ void execute_i_type(riscv_decoded_t riscv_decoded) {
 }
 
 void execute_s_type(riscv_decoded_t riscv_decoded) {
-
+  // Implement SW
+  if (riscv_decoded.funct3 == 2) {
+    mem_write_32(CURRENT_STATE.REGS[riscv_decoded.rs1] + riscv_decoded.imm, CURRENTSTATE.REGS[riscv_decoded.rs2]);
+  }
+  else {
+    printf("Instruction not recognised\n");
+  }
+  NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
 
 void execute_sb_type(riscv_decoded_t riscv_decoded) {
-
+  // Implement BNE
+  if (riscv_decoded.funct3 == 1) {
+    if (CURRENT_STATE.REGS[riscv_decoded.rs1] != CURRENT_STATE.REGS[riscv_decoded.rs2]) {
+      NEXT_STATE.PC = CURRENT_STATE.PC + riscv_decoded.imm;
+    }
+    else {
+      NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+    }
+  }
+  else {
+    printf("Intruction not recognised\n");
+  }
 }
 
 void execute_u_type(riscv_decoded_t riscv_decoded) {
-
+  NEXT_STATE.REGS[riscv_decoded.rd] = CURRENT_STATE.PC + riscv_decoded.imm;
 }
 
 void execute_uj_type(riscv_decoded_t riscv_decoded) {
@@ -286,9 +304,9 @@ riscv_decoded_t decode_uj_type(uint32_t instruction) {
     riscv_decoded.imm = 0xFFF00000;
   }
   riscv_decoded.imm = riscv_decoded.imm | (temp1 & 0x000FF000);
-  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x00100000) >> 9);
-  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x7E000000) >> 20);
-  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x01E00000) >> 20);
+  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x00100000) >> 8);
+  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x7E000000) >> 19);
+  riscv_decoded.imm = riscv_decoded.imm | ((temp1 & 0x01E00000) >> 19);
 
   DEBUG printf("PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [rd 0x%08x] [imm 0x%08x]\n", CURRENT_STATE.PC, instruction, riscv_decoded.opcode, riscv_decoded.rd, riscv_decoded.imm);
   return riscv_decoded;
