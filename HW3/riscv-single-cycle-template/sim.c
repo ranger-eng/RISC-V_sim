@@ -149,7 +149,7 @@ void execute_i_type(riscv_decoded_t riscv_decoded) {
 void execute_s_type(riscv_decoded_t riscv_decoded) {
   // Implement SW
   if (riscv_decoded.funct3 == 2) {
-    mem_write_32(CURRENT_STATE.REGS[riscv_decoded.rs1] + riscv_decoded.imm, CURRENTSTATE.REGS[riscv_decoded.rs2]);
+    mem_write_32(CURRENT_STATE.REGS[riscv_decoded.rs1] + riscv_decoded.imm, CURRENT_STATE.REGS[riscv_decoded.rs2]);
   }
   else {
     printf("Instruction not recognised\n");
