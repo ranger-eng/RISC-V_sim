@@ -173,6 +173,7 @@ void execute_sb_type(riscv_decoded_t riscv_decoded) {
 }
 
 void execute_u_type(riscv_decoded_t riscv_decoded) {
+  // Implement AUIPC
   NEXT_STATE.REGS[riscv_decoded.rd] = CURRENT_STATE.PC + riscv_decoded.imm;
 }
 
