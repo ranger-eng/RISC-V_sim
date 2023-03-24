@@ -149,18 +149,7 @@ void execute_r_type(riscv_decoded_t riscv_decoded) {
 }
 
 void execute_i_type(riscv_decoded_t riscv_decoded) {
-  // Implement ADDI
-  if (riscv_decoded.funct3 == 0) {
-    NEXT_STATE.REGS[riscv_decoded.rd] = CURRENT_STATE.REGS[riscv_decoded.rs1] + riscv_decoded.imm;
-  }
-  // Implement SLLI
-  else if (riscv_decoded.funct3 == 1) {
-    NEXT_STATE.REGS[riscv_decoded.rd] = CURRENT_STATE.REGS[riscv_decoded.rs1] << riscv_decoded.imm;
-  }
-  else {
-    printf("Instruction not recognised\n");
-  }
-  NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+
 }
 
 void execute_s_type(riscv_decoded_t riscv_decoded) {
