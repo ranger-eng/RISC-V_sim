@@ -1,4 +1,4 @@
-#define DEBUG_BOOL 1
+#define DEBUG_BOOL 0
 #define DEBUG if(DEBUG_BOOL)
 
 #include <inttypes.h>
