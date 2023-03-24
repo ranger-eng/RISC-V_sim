@@ -19,7 +19,6 @@ void decode()
 {
   current_inst_format = decode_opcode(current_instruction);
   if (current_inst_format == error) {
-    printf("Invalid Opcode: 0x%08x\n");
     return;
   }
   DEBUG printf("PC0x%08x: instruction type %d\n", CURRENT_STATE.PC, current_inst_format);
