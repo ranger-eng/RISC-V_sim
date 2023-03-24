@@ -1,7 +1,7 @@
 // setup RISC-V core instruction format type masks, and types 
 typedef uint32_t opcode_mask_t;
 
-const opcode_mask_t opcode_mask = 0x000000ff;
+const opcode_mask_t opcode_mask = 0x0000007f;
 // define the various opcode possibilities
 const opcode_mask_t opcode_I1 =   0x00000003;
 const opcode_mask_t opcode_I2 =   0x0000000f;

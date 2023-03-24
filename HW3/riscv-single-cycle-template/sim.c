@@ -57,16 +57,16 @@ void execute()
       execute_r_type(current_riscv_decoded);
       break;
     case I:
-      //execute_i_type(riscv_decoded_t riscv_decoded);
+      execute_i_type(current_riscv_decoded);
       break;
     case S:
-      //execute_s_type(riscv_decoded_t riscv_decoded);
+      execute_s_type(current_riscv_decoded);
       break;
     case SB:
-      //execute_sb_type(riscv_decoded_t riscv_decoded);
+      execute_sb_type(current_riscv_decoded);
       break;
     case U:
-      //execute_u_type(riscv_decoded_t riscv_decoded);
+      execute_u_type(current_riscv_decoded);
       break;
     case UJ:
       execute_uj_type(current_riscv_decoded);
@@ -83,6 +83,9 @@ void process_instruction()
    * values in NEXT_STATE. You can call mem_read_32() and mem_write_32() to
    * access memory. */
   fetch();
+  if (current_instruction == 0) {
+    RUN_BIT = 0;
+  }
   decode();
   execute();
 }
@@ -125,7 +128,7 @@ void execute_r_type(riscv_decoded_t riscv_decoded) {
   int32_t rs1_value;
   int32_t rs2_value;
 
-  // Implement Add
+  // Implement ADD
   if ((riscv_decoded.funct3 == 0) && (riscv_decoded.funct7 == 0)) {
     rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
     rs2_value = CURRENT_STATE.REGS[riscv_decoded.rs2];
@@ -133,6 +136,10 @@ void execute_r_type(riscv_decoded_t riscv_decoded) {
     rd_value = rs1_value + rs2_value;
 
     NEXT_STATE.REGS[riscv_decoded.rd] = rd_value;
+  }
+  // Implement SLT
+  else if ((riscv_decoded.funct3 == 2) && (riscv_decoded.funct7 == 0)) {
+    NEXT_STATE.REGS[riscv_decoded.rd] = (CURRENT_STATE.REGS[riscv_decoded.rs1] < CURRENT_STATE.REGS[riscv_decoded.rs2]) ? 1 : 0;
   }
   else {
     printf("Instruction not recognised\n");
@@ -186,6 +193,7 @@ void execute_sb_type(riscv_decoded_t riscv_decoded) {
 void execute_u_type(riscv_decoded_t riscv_decoded) {
   // Implement AUIPC
   NEXT_STATE.REGS[riscv_decoded.rd] = CURRENT_STATE.PC + riscv_decoded.imm;
+  NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
 
 void execute_uj_type(riscv_decoded_t riscv_decoded) {
@@ -199,7 +207,7 @@ void execute_uj_type(riscv_decoded_t riscv_decoded) {
 
 }
 
-// decode function definitions
+// decode function definitions. Decoding is done using bit masks that are defined in sim_types.h
 riscv_decoded_t decode_r_type(uint32_t instruction) {
   riscv_decoded_t riscv_decoded = {0};
 

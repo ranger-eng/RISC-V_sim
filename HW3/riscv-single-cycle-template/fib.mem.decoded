@@ -1,0 +1,18 @@
+10000917 # auipc x18, 0x10000
+00090913 # addi x18 x18 0
+00a00993 # addi x19 x0 10
+00200e13 # addi x28 x0 2
+00000a13 # addi x20 x0 0
+00490e93 # addi x29 x18 4
+00100a93 # addi x21 x0 1
+015ea023 # sw x21 0(x29)
+002e1e93 # slli x29 x28 2
+015a0b33 # add x22 x20 x21
+000a8a13 # addi x20 x21 0
+000b0a93 # addi x21 x22 0
+01d90bb3 # add x23 x29 x18
+016ba023 # sw x22 0(x23) 
+001e0e13 
+013e2f33 # slt x30 x28 x19
+fe0f10e3 # bne x30 x0 -32
+00000013
