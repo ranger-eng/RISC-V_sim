@@ -1,3 +1,7 @@
+// Austin Mackey - Computer Architecture - HW3
+// There are two headers included, sim_types.h
+// which includes type def info and declarations of the bit masks
+// Also, sim.h, which contains function definitions.
 #include <stdio.h>
 #include <inttypes.h>
 #include "shell.h"
