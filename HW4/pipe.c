@@ -58,6 +58,13 @@ void pipe_stage_mem()
     // update data to be passed up to wb based on control logic
     int data;
     data = pipe_reg_EXtoMEM.alu_result;
+    // Perform memory operations
+    if (pipe_reg_EXtoMEM.mem_read) {
+      data = mem_read_32(pipe_reg_EXtoMEM.alu_result);
+    }
+    if (pipe_reg_EXtoMEM.mem_write) {
+      mem_write_32(pipe_reg_EXtoMEM.alu_result, pipe_reg_EXtoMEM.riscv_decoded.rs2_value);
+    }
 
     // update pipe_reg_MEMtoWB
     pipe_reg_MEMtoWB.riscv_decoded = pipe_reg_EXtoMEM.riscv_decoded;
@@ -223,6 +230,15 @@ int32_t execute_i_type(riscv_decoded_t riscv_decoded) {
     pipe_reg_EXtoMEM.wb_regwrite = true;
     DEBUG printf("EXECUTE; PC0x%08x: ADDI %d + %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, rs1_value, riscv_decoded.imm, riscv_decoded.rd);
   }
+  // Implement LW
+  if (riscv_decoded.funct3 == 2) {
+    alu_result = rs1_value + riscv_decoded.imm;
+    DEBUG printf("EXECUTE; PC0x%08x: LW rd:%08x, addr:%d\n", pipe_reg_IDtoEX.pc, riscv_decoded.rd, alu_result);
+
+    // control
+    pipe_reg_EXtoMEM.mem_read = true;
+    pipe_reg_EXtoMEM.wb_regwrite = true;
+  }
 
   return alu_result;
 }
@@ -233,6 +249,15 @@ int32_t execute_s_type(riscv_decoded_t riscv_decoded) {
   uint32_t rs1_value = riscv_decoded.rs1_value;
   uint32_t rs2_value = riscv_decoded.rs2_value;
   forward(riscv_decoded, &rs1_value, &rs2_value);
+
+  // Implement SW
+  if (riscv_decoded.funct3 == 2) {
+    alu_result = rs1_value + riscv_decoded.imm;
+    DEBUG printf("EXECUTE; PC0x%08x: SW addr:%08x, value:%d\n", pipe_reg_IDtoEX.pc, alu_result, riscv_decoded.rs2_value);
+
+    // control
+    pipe_reg_EXtoMEM.mem_write = 1;
+  }
 
   return alu_result;
 }
@@ -252,7 +277,12 @@ int32_t execute_sb_type(riscv_decoded_t riscv_decoded) {
 int32_t execute_u_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
 
-  // TODO: Implement here
+  // Implement AUIPC
+  alu_result = pipe_reg_IDtoEX.pc + riscv_decoded.imm;
+  DEBUG printf("EXECUTE; PC0x%08x: AUIPC rd:%d, pc+imm:%08x\n", pipe_reg_IDtoEX.pc, riscv_decoded.rd, alu_result);
+
+  // control
+  pipe_reg_EXtoMEM.wb_regwrite = true;
 
   return alu_result;
 }
