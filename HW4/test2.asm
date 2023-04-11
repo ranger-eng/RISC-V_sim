@@ -12,3 +12,4 @@
 	addi x8, x8, 4
 	addi x9, x9, -1
 	blt x0, x9, -24
+	addi x0, x0, 0

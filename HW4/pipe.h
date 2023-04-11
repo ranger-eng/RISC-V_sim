@@ -90,4 +90,9 @@ int32_t execute_sb_type(riscv_decoded_t decoded_instruction);
 int32_t execute_u_type(riscv_decoded_t decoded_instruction);
 int32_t execute_uj_type(riscv_decoded_t decoded_instruction);
 
+/* functions for conditional forwarding. Pass NULL to ignore rs */
+void forward(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value);
+void forward_ex_mem(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value);
+void forward_wb(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value);
+
 #endif

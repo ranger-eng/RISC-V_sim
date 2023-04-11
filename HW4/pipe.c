@@ -11,6 +11,9 @@ pipe_reg_IFtoID_t pipe_reg_IFtoID = {0};
 pipe_reg_IDtoEX_t pipe_reg_IDtoEX = {0};
 pipe_reg_EXtoMEM_t pipe_reg_EXtoMEM = {0};
 pipe_reg_MEMtoWB_t pipe_reg_MEMtoWB = {0};
+// Needed to preserve WB for forwarding in exec,
+// otherwise it is overwritten by mem stage before exec.
+pipe_reg_MEMtoWB_t pipe_reg_WB = {0};
 
 void pipe_init()
 {
@@ -38,9 +41,11 @@ void pipe_stage_wb()
       CURRENT_STATE.REGS[pipe_reg_MEMtoWB.riscv_decoded.rd] = pipe_reg_MEMtoWB.data;
     }
 
+    pipe_reg_WB = pipe_reg_MEMtoWB;
+
     if (pipe_reg_MEMtoWB.riscv_decoded.inst_format == noop) {
       RUN_BIT = 0;
-    } 
+    }
   }
 }
 
@@ -95,6 +100,7 @@ void pipe_stage_execute()
       default:
         // EOF, do mothing.
         pipe_reg_IDtoEX.start_EX = false;
+        pipe_reg_EXtoMEM.riscv_decoded = pipe_reg_IDtoEX.riscv_decoded;
         return;
     }
 
@@ -108,7 +114,7 @@ void pipe_stage_execute()
     // add 4 normally, or update pc based on instruciton
     // pipe_reg_EXtoMEM.pc;
     pipe_reg_EXtoMEM.instruction = pipe_reg_IDtoEX.instruction;
-    pipe_reg_EXtoMEM.riscv_decoded = pipe_reg_IDtoEX.riscv_decoded; 
+    pipe_reg_EXtoMEM.riscv_decoded = pipe_reg_IDtoEX.riscv_decoded;
   }
 }
 
@@ -141,8 +147,14 @@ void pipe_stage_decode()
         break;
       default:
         decoded_instruction.inst_format = noop;
-        pipe_reg_IDtoEX.start_EX = false;
+        pipe_reg_IFtoID.start_ID = false;
         return;
+    }
+
+    // If trying to write to x0, replace with noop since x0 is read only.
+    if(current_inst_format != S && current_inst_format != SB && decoded_instruction.rd == 0) {
+      decoded_instruction.inst_format = noop;
+      pipe_reg_IFtoID.start_ID = false;
     }
 
     // populate pipe_reg_IDtoEX
@@ -173,37 +185,43 @@ void pipe_stage_fetch()
 int32_t execute_r_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
 
+  uint32_t rs1_value = riscv_decoded.rs1_value;
+  uint32_t rs2_value = riscv_decoded.rs2_value;
+  forward(riscv_decoded, &rs1_value, &rs2_value);
+
   // Implement ADD
   if ((riscv_decoded.funct3 == 0) && (riscv_decoded.funct7 == 0)) {
-    alu_result = riscv_decoded.rs1_value + riscv_decoded.rs2_value;
+    alu_result = rs1_value + rs2_value;
     
     //control
     pipe_reg_EXtoMEM.wb_regwrite = true;
-    DEBUG printf("EXECUTE; PC0x%08x: ADD %d + %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, riscv_decoded.rs1_value, riscv_decoded.rs2_value, riscv_decoded.rd);
+    DEBUG printf("EXECUTE; PC0x%08x: ADD %d + %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, rs1_value, rs2_value, riscv_decoded.rd);
   }
   // Implement SUB
   if ((riscv_decoded.funct3 == 0) && (riscv_decoded.funct7 == 32)) {
-    alu_result = riscv_decoded.rs1_value - riscv_decoded.rs2_value;
+    alu_result = rs1_value - rs2_value;
     
     //control
     pipe_reg_EXtoMEM.wb_regwrite = true;
-    DEBUG printf("EXECUTE; PC0x%08x: SUB %d - %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, riscv_decoded.rs1_value, riscv_decoded.rs2_value, riscv_decoded.rd);
+    DEBUG printf("EXECUTE; PC0x%08x: SUB %d - %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, rs1_value, rs2_value, riscv_decoded.rd);
   }
 
   return alu_result;
-
 }
 
 int32_t execute_i_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
+
+  uint32_t rs1_value = riscv_decoded.rs1_value;
+  forward(riscv_decoded, &rs1_value, NULL);
   
   // Implement ADDI
   if (riscv_decoded.funct3 == 0) {
-    alu_result = riscv_decoded.rs1_value + riscv_decoded.imm;
+    alu_result = rs1_value + riscv_decoded.imm;
 
     // control
     pipe_reg_EXtoMEM.wb_regwrite = true;
-    DEBUG printf("EXECUTE; PC0x%08x: ADDI %d + %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, riscv_decoded.rs1_value, riscv_decoded.imm, riscv_decoded.rd);
+    DEBUG printf("EXECUTE; PC0x%08x: ADDI %d + %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, rs1_value, riscv_decoded.imm, riscv_decoded.rd);
   }
 
   return alu_result;
@@ -211,16 +229,31 @@ int32_t execute_i_type(riscv_decoded_t riscv_decoded) {
 
 int32_t execute_s_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
+  
+  uint32_t rs1_value = riscv_decoded.rs1_value;
+  uint32_t rs2_value = riscv_decoded.rs2_value;
+  forward(riscv_decoded, &rs1_value, &rs2_value);
+
   return alu_result;
 }
 
 int32_t execute_sb_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
+
+  uint32_t rs1_value = riscv_decoded.rs1_value;
+  uint32_t rs2_value = riscv_decoded.rs2_value;
+  forward(riscv_decoded, &rs1_value, &rs2_value);
+
+  // TODO: Implement here
+
   return alu_result;
 }
 
 int32_t execute_u_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
+
+  // TODO: Implement here
+
   return alu_result;
 }
 
@@ -467,4 +500,42 @@ riscv_decoded_t decode_uj_type(uint32_t instruction) {
 
   DEBUG printf("DECODE; PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [rd 0x%08x] [imm 0x%08x]\n", pipe_reg_IFtoID.pc, instruction, riscv_decoded.opcode, riscv_decoded.rd, riscv_decoded.imm);
   return riscv_decoded;
+}
+
+void forward(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value) {
+  // By calling ex_mem AFTER mem_wb, we prioritize forwarding ex_mem without an additional check.
+  // Technically wastefull, but performance isn't critical here.
+  forward_wb(riscv_decoded, rs1_value, rs2_value);
+  forward_ex_mem(riscv_decoded, rs1_value, rs2_value);
+}
+
+void forward_ex_mem(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value) {
+  if(rs1_value) {
+    bool forward_rs1 = pipe_reg_MEMtoWB.wb_regwrite &&
+      pipe_reg_MEMtoWB.riscv_decoded.rd == riscv_decoded.rs1 &&
+      pipe_reg_MEMtoWB.riscv_decoded.rd != 0;
+    *rs1_value = forward_rs1 ? pipe_reg_MEMtoWB.data : *rs1_value;
+  }
+  if(rs2_value) {
+    bool forward_rs2 = pipe_reg_MEMtoWB.wb_regwrite &&
+      pipe_reg_MEMtoWB.riscv_decoded.rd == riscv_decoded.rs2 &&
+      pipe_reg_MEMtoWB.riscv_decoded.rd != 0;
+    *rs2_value = forward_rs2 ? pipe_reg_MEMtoWB.data : *rs2_value;
+  }
+}
+
+void forward_wb(riscv_decoded_t riscv_decoded, uint32_t* rs1_value, uint32_t* rs2_value) {  
+  if(rs1_value) {
+    bool forward_rs1 = pipe_reg_WB.wb_regwrite &&
+      pipe_reg_WB.riscv_decoded.rd == riscv_decoded.rs1 &&
+      pipe_reg_WB.riscv_decoded.rd != 0;
+    *rs1_value = forward_rs1 ? pipe_reg_WB.data : *rs1_value;
+  }
+  if(rs2_value) {
+    bool forward_rs2 = pipe_reg_WB.wb_regwrite &&
+      pipe_reg_WB.riscv_decoded.rd == riscv_decoded.rs2 &&
+      pipe_reg_WB.riscv_decoded.rd != 0;
+
+    *rs2_value = forward_rs2 ? pipe_reg_WB.data : *rs2_value;
+  }
 }

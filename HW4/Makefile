@@ -1,5 +1,5 @@
 sim: shell.c pipe.c
-	gcc -g -O2 $^ -o $@
+	gcc -g $^ -o $@
 
 .PHONY: clean
 clean:
