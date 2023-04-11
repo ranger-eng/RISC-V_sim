@@ -65,6 +65,10 @@ void pipe_stage_mem()
     if (pipe_reg_EXtoMEM.mem_write) {
       mem_write_32(pipe_reg_EXtoMEM.alu_result, pipe_reg_EXtoMEM.riscv_decoded.rs2_value);
     }
+    // Perform branching
+    if (pipe_reg_EXtoMEM.mem_branch) {
+      CURRENT_STATE.PC = data;
+    }
 
     // update pipe_reg_MEMtoWB
     pipe_reg_MEMtoWB.riscv_decoded = pipe_reg_EXtoMEM.riscv_decoded;
@@ -269,7 +273,13 @@ int32_t execute_sb_type(riscv_decoded_t riscv_decoded) {
   uint32_t rs2_value = riscv_decoded.rs2_value;
   forward(riscv_decoded, &rs1_value, &rs2_value);
 
-  // TODO: Implement here
+  // Implement blt
+  if (riscv_decoded.funct3 == 4) {
+    if (riscv_decoded.rs1_value < riscv_decoded.rs2_value) {
+      pipe_reg_EXtoMEM.mem_branch = 1;
+      alu_result = pipe_reg_EXtoMEM.pc + riscv_decoded.imm;
+    }
+  }
 
   return alu_result;
 }
