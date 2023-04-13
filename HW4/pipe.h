@@ -49,6 +49,8 @@ typedef struct {
   bool start_EX;
   uint32_t pc;
   uint32_t instruction;
+  uint32_t rs1_value;
+  uint32_t rs2_value;
   riscv_decoded_t riscv_decoded;
 } pipe_reg_IDtoEX_t;
 
@@ -57,6 +59,7 @@ typedef struct {
   uint32_t pc;
   uint32_t instruction;
   int32_t alu_result;
+  uint32_t rs2_value;
   riscv_decoded_t riscv_decoded;
   // control
   bool mem_branch;

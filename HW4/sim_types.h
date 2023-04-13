@@ -81,9 +81,7 @@ typedef struct {
   uint32_t rd;
   uint32_t funct3;
   uint32_t rs1;
-  uint32_t rs1_value;
   uint32_t rs2;
-  uint32_t rs2_value;
   uint32_t funct7;
   int imm;
 } riscv_decoded_t;

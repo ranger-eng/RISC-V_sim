@@ -64,7 +64,12 @@ void pipe_stage_mem()
     }
     if (pipe_reg_EXtoMEM.mem_write) {
       // Read directly from register file, not from pipe_reg_EXtoMEM, because it may have been updated by WB stage.
-      mem_write_32(pipe_reg_EXtoMEM.alu_result, CURRENT_STATE.REGS[pipe_reg_EXtoMEM.riscv_decoded.rs2]);
+      uint32_t rs2_value = pipe_reg_EXtoMEM.rs2_value;
+      // Forward from WB stage if WB rd is the same as MEM rs2
+      if (pipe_reg_MEMtoWB.wb_regwrite && pipe_reg_MEMtoWB.riscv_decoded.rd == pipe_reg_EXtoMEM.riscv_decoded.rs2) {
+        rs2_value = pipe_reg_MEMtoWB.data;
+      }
+      mem_write_32(pipe_reg_EXtoMEM.alu_result, rs2_value);
     }
     // Perform branching
     if (pipe_reg_EXtoMEM.mem_branch) {
@@ -171,6 +176,8 @@ void pipe_stage_decode()
 
     // populate pipe_reg_IDtoEX
     pipe_reg_IDtoEX.pc = pipe_reg_IFtoID.pc;
+    pipe_reg_IDtoEX.rs1_value = CURRENT_STATE.REGS[decoded_instruction.rs1];
+    pipe_reg_IDtoEX.rs2_value = CURRENT_STATE.REGS[decoded_instruction.rs2];
     pipe_reg_IDtoEX.instruction = pipe_reg_IFtoID.instruction;
     pipe_reg_IDtoEX.riscv_decoded = decoded_instruction;
   }
@@ -197,8 +204,8 @@ void pipe_stage_fetch()
 int32_t execute_r_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
 
-  uint32_t rs1_value = riscv_decoded.rs1_value;
-  uint32_t rs2_value = riscv_decoded.rs2_value;
+  uint32_t rs1_value = pipe_reg_IDtoEX.rs1_value;
+  uint32_t rs2_value = pipe_reg_IDtoEX.rs2_value;
   forward(riscv_decoded, &rs1_value, &rs2_value);
 
   // Implement ADD
@@ -218,13 +225,15 @@ int32_t execute_r_type(riscv_decoded_t riscv_decoded) {
     DEBUG printf("EXECUTE; PC0x%08x: SUB %d - %d, to REG[%d]\n", pipe_reg_IDtoEX.pc, rs1_value, rs2_value, riscv_decoded.rd);
   }
 
+  pipe_reg_EXtoMEM.rs2_value = rs2_value;
+
   return alu_result;
 }
 
 int32_t execute_i_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
 
-  uint32_t rs1_value = riscv_decoded.rs1_value;
+  uint32_t rs1_value = pipe_reg_IDtoEX.rs1_value;
   forward(riscv_decoded, &rs1_value, NULL);
   
   // Implement ADDI
@@ -251,18 +260,20 @@ int32_t execute_i_type(riscv_decoded_t riscv_decoded) {
 int32_t execute_s_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
   
-  uint32_t rs1_value = riscv_decoded.rs1_value;
-  uint32_t rs2_value = riscv_decoded.rs2_value;
+  uint32_t rs1_value = pipe_reg_IDtoEX.rs1_value;
+  uint32_t rs2_value = pipe_reg_IDtoEX.rs2_value;
   forward(riscv_decoded, &rs1_value, &rs2_value);
 
   // Implement SW
   if (riscv_decoded.funct3 == 2) {
     alu_result = rs1_value + riscv_decoded.imm;
-    DEBUG printf("EXECUTE; PC0x%08x: SW addr:%08x, value:%d\n", pipe_reg_IDtoEX.pc, alu_result, riscv_decoded.rs2_value);
+    DEBUG printf("EXECUTE; PC0x%08x: SW addr:%08x, value:%d\n", pipe_reg_IDtoEX.pc, alu_result, rs2_value);
 
     // control
     pipe_reg_EXtoMEM.mem_write = 1;
   }
+
+  pipe_reg_EXtoMEM.rs2_value = rs2_value;
 
   return alu_result;
 }
@@ -270,17 +281,19 @@ int32_t execute_s_type(riscv_decoded_t riscv_decoded) {
 int32_t execute_sb_type(riscv_decoded_t riscv_decoded) {
   int32_t alu_result;
 
-  uint32_t rs1_value = riscv_decoded.rs1_value;
-  uint32_t rs2_value = riscv_decoded.rs2_value;
+  uint32_t rs1_value = pipe_reg_IDtoEX.rs1_value;
+  uint32_t rs2_value = pipe_reg_IDtoEX.rs2_value;
   forward(riscv_decoded, &rs1_value, &rs2_value);
 
   // Implement blt
   if (riscv_decoded.funct3 == 4) {
-    if (riscv_decoded.rs1_value < riscv_decoded.rs2_value) {
+    if (rs1_value < rs2_value) {
       pipe_reg_EXtoMEM.mem_branch = 1;
       alu_result = pipe_reg_EXtoMEM.pc + riscv_decoded.imm;
     }
   }
+
+  pipe_reg_EXtoMEM.rs2_value = rs2_value;
 
   return alu_result;
 }
@@ -421,9 +434,6 @@ riscv_decoded_t decode_r_type(uint32_t instruction) {
   riscv_decoded.rs2 = (instruction & r_type_mask.rs2) >> r_type_mask.rs2_shift;
   riscv_decoded.funct7 = (instruction & r_type_mask.funct7) >> r_type_mask.funct7_shift;
 
-  riscv_decoded.rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
-  riscv_decoded.rs2_value = CURRENT_STATE.REGS[riscv_decoded.rs2];
-
   DEBUG printf("DECODE; PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [rd 0x%08x] [funct3 0x%08x] [rs1 0x%08x] [rs2 0x%08x] [funct7 0x%08x]\n", pipe_reg_IFtoID.pc, instruction, riscv_decoded.opcode, riscv_decoded.rd, riscv_decoded.funct3, riscv_decoded.rs1, riscv_decoded.rs2, riscv_decoded.funct7);
   return riscv_decoded;
 }
@@ -443,8 +453,6 @@ riscv_decoded_t decode_i_type(uint32_t instruction) {
   if(riscv_decoded.imm & 0x00000800) {
     riscv_decoded.imm = riscv_decoded.imm | 0xFFFFF800;
   }
-
-  riscv_decoded.rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
 
   DEBUG printf("DECODE; PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [rd 0x%08x] [funct3 0x%08x] [rs1 0x%08x] [imm 0x%08x]\n", pipe_reg_IFtoID.pc, instruction, riscv_decoded.opcode, riscv_decoded.rd, riscv_decoded.funct3, riscv_decoded.rs1, riscv_decoded.imm);
   return riscv_decoded;
@@ -469,9 +477,6 @@ riscv_decoded_t decode_s_type(uint32_t instruction) {
   if(riscv_decoded.imm & 0x00000800) {
     riscv_decoded.imm = riscv_decoded.imm | 0xFFFFF800;
   }
-
-  riscv_decoded.rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
-  riscv_decoded.rs2_value = CURRENT_STATE.REGS[riscv_decoded.rs2];
 
   DEBUG printf("DECODE; PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [imm 0x%08x] [funct3 0x%08x] [rs1 0x%08x] [rs2 0x%08x]\n", pipe_reg_IFtoID.pc, instruction, riscv_decoded.opcode, riscv_decoded.imm, riscv_decoded.funct3, riscv_decoded.rs1, riscv_decoded.rs2);
   return riscv_decoded;
@@ -501,9 +506,6 @@ riscv_decoded_t decode_sb_type(uint32_t instruction) {
   if (temp2 & 0x80000000) {
     riscv_decoded.imm = riscv_decoded.imm | 0xFFFFF000;
   }
-  
-  riscv_decoded.rs1_value = CURRENT_STATE.REGS[riscv_decoded.rs1];
-  riscv_decoded.rs2_value = CURRENT_STATE.REGS[riscv_decoded.rs2];
   
   DEBUG printf("DECODE; PC0x%08x: 0x%08x decoded: [opcode 0x%08x] [imm 0x%08x] [funct3 0x%08x] [rs1 0x%08x] [rs2 0x%08x]\n", pipe_reg_IFtoID.pc, instruction, riscv_decoded.opcode, riscv_decoded.imm, riscv_decoded.funct3, riscv_decoded.rs1, riscv_decoded.rs2);
   return riscv_decoded;
