@@ -63,7 +63,8 @@ void pipe_stage_mem()
       data = mem_read_32(pipe_reg_EXtoMEM.alu_result);
     }
     if (pipe_reg_EXtoMEM.mem_write) {
-      mem_write_32(pipe_reg_EXtoMEM.alu_result, pipe_reg_EXtoMEM.riscv_decoded.rs2_value);
+      // Read directly from register file, not from pipe_reg_EXtoMEM, because it may have been updated by WB stage.
+      mem_write_32(pipe_reg_EXtoMEM.alu_result, CURRENT_STATE.REGS[pipe_reg_EXtoMEM.riscv_decoded.rs2]);
     }
     // Perform branching
     if (pipe_reg_EXtoMEM.mem_branch) {
