@@ -74,6 +74,7 @@ void pipe_stage_mem()
     // Perform branching
     if (pipe_reg_EXtoMEM.mem_branch) {
       CURRENT_STATE.PC = data;
+      // TODO: flush pipeline
     }
 
     // update pipe_reg_MEMtoWB
@@ -114,6 +115,10 @@ void pipe_stage_execute()
       case U:
         alu_result = execute_u_type(pipe_reg_IDtoEX.riscv_decoded);
         break;
+      case nop:
+        // pass through
+        pipe_reg_EXtoMEM.riscv_decoded.inst_format = nop;
+        return;
       default:
         // EOF, do mothing.
         pipe_reg_IDtoEX.start_EX = false;
@@ -174,12 +179,22 @@ void pipe_stage_decode()
       pipe_reg_IFtoID.start_ID = false;
     }
 
-    // populate pipe_reg_IDtoEX
-    pipe_reg_IDtoEX.pc = pipe_reg_IFtoID.pc;
-    pipe_reg_IDtoEX.rs1_value = CURRENT_STATE.REGS[decoded_instruction.rs1];
-    pipe_reg_IDtoEX.rs2_value = CURRENT_STATE.REGS[decoded_instruction.rs2];
-    pipe_reg_IDtoEX.instruction = pipe_reg_IFtoID.instruction;
-    pipe_reg_IDtoEX.riscv_decoded = decoded_instruction;
+    // Check for load-use hazards
+    bool load_use_hazard = pipe_reg_EXtoMEM.mem_read && (
+      pipe_reg_EXtoMEM.riscv_decoded.rd == decoded_instruction.rs1 ||
+      pipe_reg_EXtoMEM.riscv_decoded.rd == decoded_instruction.rs2
+    );
+    if (load_use_hazard) {
+      // insert nop
+      pipe_reg_IDtoEX.riscv_decoded.inst_format = nop;
+    } else {
+      // populate pipe_reg_IDtoEX
+      pipe_reg_IDtoEX.pc = pipe_reg_IFtoID.pc;
+      pipe_reg_IDtoEX.rs1_value = CURRENT_STATE.REGS[decoded_instruction.rs1];
+      pipe_reg_IDtoEX.rs2_value = CURRENT_STATE.REGS[decoded_instruction.rs2];
+      pipe_reg_IDtoEX.instruction = pipe_reg_IFtoID.instruction;
+      pipe_reg_IDtoEX.riscv_decoded = decoded_instruction;
+    }
   }
 }
 

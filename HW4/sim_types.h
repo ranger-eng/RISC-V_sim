@@ -70,6 +70,7 @@ enum instruction_format_t {
   SB,
   U,
   UJ,
+  nop,
   hlt
 };
 
