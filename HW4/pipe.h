@@ -41,6 +41,7 @@ void pipe_stage_wb();
 /* definitions for pipeline registers */
 typedef struct {
   bool start_ID;
+  bool nop;
   uint32_t pc;
   uint32_t instruction;
 } pipe_reg_IFtoID_t;

@@ -30,6 +30,7 @@ void pipe_cycle() {
 }
 
 void pipe_stage_wb() {
+  stall = false;
   if (pipe_reg_MEMtoWB.start_WB) {
     DEBUG printf("WB; PC0x%08x: instruction type %d\n", pipe_reg_MEMtoWB.pc, pipe_reg_MEMtoWB.riscv_decoded.inst_format);
 
@@ -55,10 +56,6 @@ void pipe_stage_mem() {
     int data;
     data = pipe_reg_EXtoMEM.alu_result;
     // Perform memory operations
-    if (pipe_reg_EXtoMEM.riscv_decoded.inst_format == nop) {
-      pipe_reg_MEMtoWB.riscv_decoded.inst_format = nop;
-      return;
-    }
     if (pipe_reg_EXtoMEM.mem_read) {
       data = mem_read_32(pipe_reg_EXtoMEM.alu_result);
     }
@@ -74,7 +71,10 @@ void pipe_stage_mem() {
     // Perform branching
     if (pipe_reg_EXtoMEM.mem_branch) {
       CURRENT_STATE.PC = data;
-      // TODO: flush pipeline
+      // flush pipeline (insert nop in IF, ID, EX)
+      pipe_reg_IDtoEX.riscv_decoded.inst_format = nop;
+      pipe_reg_IFtoID.nop = true;
+      stall = true;
     }
 
     // update pipe_reg_MEMtoWB
@@ -131,9 +131,7 @@ void pipe_stage_execute() {
 
     // update pipe_reg_EXtoMEM
     pipe_reg_EXtoMEM.alu_result = alu_result;
-    // handle updating the pc within the execution functions.
-    // add 4 normally, or update pc based on instruciton
-    // pipe_reg_EXtoMEM.pc;
+    pipe_reg_EXtoMEM.pc = pipe_reg_IDtoEX.pc;
     pipe_reg_EXtoMEM.instruction = pipe_reg_IDtoEX.instruction;
     pipe_reg_EXtoMEM.riscv_decoded = pipe_reg_IDtoEX.riscv_decoded;
   }
@@ -144,7 +142,10 @@ void pipe_stage_decode() {
     // start EX
     pipe_reg_IDtoEX.start_EX = true;
     // Reset stall signal. Need to explicitly stall each cycle.
-    stall = false;
+    if(pipe_reg_IFtoID.nop) {
+      pipe_reg_IDtoEX.riscv_decoded.inst_format = nop;
+      return;
+    }
 
     riscv_decoded_t decoded_instruction = {0};
     enum instruction_format_t current_inst_format = decode_opcode(pipe_reg_IFtoID.instruction);
@@ -208,6 +209,7 @@ void pipe_stage_fetch() {
 
     // start ID
     pipe_reg_IFtoID.start_ID = true;
+    pipe_reg_IFtoID.nop = false;
 
     // update PC
     CURRENT_STATE.PC = CURRENT_STATE.PC + 4;
@@ -306,7 +308,7 @@ int32_t execute_sb_type(riscv_decoded_t riscv_decoded) {
   if (riscv_decoded.funct3 == 4) {
     if (rs1_value < rs2_value) {
       pipe_reg_EXtoMEM.mem_branch = 1;
-      alu_result = pipe_reg_EXtoMEM.pc + riscv_decoded.imm;
+      alu_result = pipe_reg_IDtoEX.pc + riscv_decoded.imm;
     }
   }
 
