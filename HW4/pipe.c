@@ -43,7 +43,7 @@ void pipe_stage_wb()
 
     pipe_reg_WB = pipe_reg_MEMtoWB;
 
-    if (pipe_reg_MEMtoWB.riscv_decoded.inst_format == noop) {
+    if (pipe_reg_MEMtoWB.riscv_decoded.inst_format == hlt) {
       RUN_BIT = 0;
     }
   }
@@ -163,14 +163,14 @@ void pipe_stage_decode()
         decoded_instruction = decode_u_type(pipe_reg_IFtoID.instruction);
         break;
       default:
-        decoded_instruction.inst_format = noop;
+        decoded_instruction.inst_format = hlt;
         pipe_reg_IFtoID.start_ID = false;
         return;
     }
 
-    // If trying to write to x0, replace with noop since x0 is read only.
+    // If trying to write to x0, replace with hlt since x0 is read only.
     if(current_inst_format != S && current_inst_format != SB && decoded_instruction.rd == 0) {
-      decoded_instruction.inst_format = noop;
+      decoded_instruction.inst_format = hlt;
       pipe_reg_IFtoID.start_ID = false;
     }
 
@@ -417,7 +417,7 @@ enum instruction_format_t decode_opcode (uint32_t instruction) {
     inst_format = UJ;
   }
   else {
-    inst_format = noop;
+    inst_format = hlt;
   }
 
   return inst_format;

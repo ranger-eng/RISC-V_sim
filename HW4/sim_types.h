@@ -70,7 +70,7 @@ enum instruction_format_t {
   SB,
   U,
   UJ,
-  noop
+  hlt
 };
 
 // hold all possible fields in a struct to make storage easier.
