@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+bool stall = false;
 pipe_reg_IFtoID_t pipe_reg_IFtoID = {0};
 pipe_reg_IDtoEX_t pipe_reg_IDtoEX = {0};
 pipe_reg_EXtoMEM_t pipe_reg_EXtoMEM = {0};
@@ -15,14 +16,12 @@ pipe_reg_MEMtoWB_t pipe_reg_MEMtoWB = {0};
 // otherwise it is overwritten by mem stage before exec.
 pipe_reg_MEMtoWB_t pipe_reg_WB = {0};
 
-void pipe_init()
-{
+void pipe_init() {
   memset(&CURRENT_STATE, 0, sizeof(CPU_State));
   CURRENT_STATE.PC = 0x00000000;
 }
 
-void pipe_cycle()
-{
+void pipe_cycle() {
   pipe_stage_wb();
   pipe_stage_mem();
   pipe_stage_execute();
@@ -30,10 +29,8 @@ void pipe_cycle()
   pipe_stage_fetch();
 }
 
-void pipe_stage_wb()
-{
+void pipe_stage_wb() {
   if (pipe_reg_MEMtoWB.start_WB) {
-
     DEBUG printf("WB; PC0x%08x: instruction type %d\n", pipe_reg_MEMtoWB.pc, pipe_reg_MEMtoWB.riscv_decoded.inst_format);
 
     if (pipe_reg_MEMtoWB.wb_regwrite) {
@@ -49,8 +46,7 @@ void pipe_stage_wb()
   }
 }
 
-void pipe_stage_mem()
-{
+void pipe_stage_mem() {
   if (pipe_reg_EXtoMEM.start_MEM) {
     pipe_reg_MEMtoWB.start_WB = true;
     DEBUG printf("MEM; PC0x%08x: instruction type %d\n", pipe_reg_EXtoMEM.pc, pipe_reg_EXtoMEM.riscv_decoded.inst_format);
@@ -59,6 +55,10 @@ void pipe_stage_mem()
     int data;
     data = pipe_reg_EXtoMEM.alu_result;
     // Perform memory operations
+    if (pipe_reg_EXtoMEM.riscv_decoded.inst_format == nop) {
+      pipe_reg_MEMtoWB.riscv_decoded.inst_format = nop;
+      return;
+    }
     if (pipe_reg_EXtoMEM.mem_read) {
       data = mem_read_32(pipe_reg_EXtoMEM.alu_result);
     }
@@ -85,8 +85,7 @@ void pipe_stage_mem()
   }
 }
 
-void pipe_stage_execute()
-{
+void pipe_stage_execute() {
   if (pipe_reg_IDtoEX.start_EX) {
     int32_t alu_result;
     
@@ -140,11 +139,12 @@ void pipe_stage_execute()
   }
 }
 
-void pipe_stage_decode()
-{
+void pipe_stage_decode() {
   if (pipe_reg_IFtoID.start_ID) {
     // start EX
     pipe_reg_IDtoEX.start_EX = true;
+    // Reset stall signal. Need to explicitly stall each cycle.
+    stall = false;
 
     riscv_decoded_t decoded_instruction = {0};
     enum instruction_format_t current_inst_format = decode_opcode(pipe_reg_IFtoID.instruction);
@@ -187,6 +187,7 @@ void pipe_stage_decode()
     if (load_use_hazard) {
       // insert nop
       pipe_reg_IDtoEX.riscv_decoded.inst_format = nop;
+      stall = true;
     } else {
       // populate pipe_reg_IDtoEX
       pipe_reg_IDtoEX.pc = pipe_reg_IFtoID.pc;
@@ -198,18 +199,19 @@ void pipe_stage_decode()
   }
 }
 
-void pipe_stage_fetch()
-{
-  pipe_reg_IFtoID.pc = CURRENT_STATE.PC;
-  pipe_reg_IFtoID.instruction = mem_read_32(pipe_reg_IFtoID.pc);
+void pipe_stage_fetch() {
+  if(!stall) {
+    pipe_reg_IFtoID.pc = CURRENT_STATE.PC;
+    pipe_reg_IFtoID.instruction = mem_read_32(pipe_reg_IFtoID.pc);
 
-  DEBUG printf("FETCH; PC0x%08x: instruction is 0x%08x\n", pipe_reg_IFtoID.pc, pipe_reg_IFtoID.instruction);
+    DEBUG printf("FETCH; PC0x%08x: instruction is 0x%08x\n", pipe_reg_IFtoID.pc, pipe_reg_IFtoID.instruction);
 
-  // start ID
-  pipe_reg_IFtoID.start_ID = true;
+    // start ID
+    pipe_reg_IFtoID.start_ID = true;
 
-  // update PC
-  CURRENT_STATE.PC = CURRENT_STATE.PC + 4;
+    // update PC
+    CURRENT_STATE.PC = CURRENT_STATE.PC + 4;
+  }
 }
 
 /*----------------------------------------------------------------*/
